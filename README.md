@@ -42,9 +42,6 @@ SIpi incendios/
 ├── README.md                         # Documentación institucional y guía de uso
 ├── INFORME_SISTEMA_SIPI_INCENDIOS.md # Informe técnico de ingeniería del sistema completo
 ├── INFORME_MINIPROYECTO.md           # Informe de ciencia de datos, EDA y preguntas de negocio
-├── GUION_PRESENTACION.md             # Guión estructurado para defensa oral y diapositivas
-├── GUION_DEMO_Y_CODIGO.md            # Guión técnico para demostración en vivo del software
-├── Presentacion_SIpi_Incendios.ipynb # Notebook ejecutable con los 6 pasos clave del modelo y la web
 ├── Miniproyecto_SIpi_Incendios.ipynb # Notebook interactivo del análisis exploratorio (EDA)
 ├── src/
 │   ├── config.py                     # Configuración central de rutas relativas y constantes
