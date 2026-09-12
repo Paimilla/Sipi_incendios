@@ -131,8 +131,8 @@ El modelo se entrena bajo una estricta estrategia de **Split Temporal** para gar
 
 ### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/TU_USUARIO/sipi-incendios.git
-cd sipi-incendios
+git clone https://github.com/Paimilla/Sipi_incendios.git
+cd Sipi_incendios
 ```
 
 ### 2. Crear entorno virtual e instalar dependencias
