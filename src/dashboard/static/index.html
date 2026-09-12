@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SIpi Incendios — Sistema Inteligente de Predicción de Incendios Forestales de Chile. Dashboard integral con mapa geoespacial, pronóstico a 7 días, simulador climático y métricas institucionales con Machine Learning y SHAP.">
+    <title>SIpi Incendios — Sistema Inteligente de Predicción de Incendios Forestales (Chile)</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS & MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+    <!-- ── Main Header ─────────────────────────────────────────── -->
+    <header id="main-header">
+        <div class="header-content">
+            <div class="logo-group">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" width="42" height="42">
+                        <defs>
+                            <linearGradient id="fireGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#B71C1C"/>
+                                <stop offset="35%" style="stop-color:#E65100"/>
+                                <stop offset="75%" style="stop-color:#FF8F00"/>
+                                <stop offset="100%" style="stop-color:#FFD54F"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M20 2 C20 2 8 16 8 24 C8 30.6 13.4 36 20 36 C26.6 36 32 30.6 32 24 C32 16 20 2 20 2Z M20 32 C15.6 32 12 28.4 12 24 C12 18.8 18 10 20 7 C22 10 28 18.8 28 24 C28 28.4 24.4 32 20 32Z"
+                              fill="url(#fireGrad)"/>
+                        <path d="M20 14 C20 14 15 21 15 25 C15 27.8 17.2 30 20 30 C22.8 30 25 27.8 25 25 C25 21 20 14 20 14Z"
+                              fill="#FFD54F" opacity="0.85"/>
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <h1>SIpi <span class="accent">Incendios</span></h1>
+                    <p class="subtitle">Sistema Inteligente de Predicción · Chile Continental</p>
+                </div>
+            </div>
+
+            <!-- Quick Jump Navigation -->
+            <nav class="nav-links" id="nav-links">
+                <a href="#section-map-predict" class="nav-link active">📍 Mapa & Predicción</a>
+                <a href="#section-forecast" class="nav-link">📅 Pronóstico 7 Días</a>
+                <a href="#section-simulator" class="nav-link">🧪 Simulador What-If</a>
+                <a href="#section-regional" class="nav-link">🗺️ Panorama Regional</a>
+                <a href="#section-diagnostics" class="nav-link">📊 Métricas & Diagnóstico</a>
+            </nav>
+
+            <div class="header-actions">
+                <button type="button" class="btn-hdr-action btn-hdr-report" id="btn-hdr-report" title="Ver informe técnico y ejecutivo completo del sistema">
+                    <span class="btn-icon">📄</span> <span class="btn-label">Informe del Sistema</span>
+                </button>
+                <button type="button" class="btn-hdr-action" id="btn-hdr-gps" title="Evaluar riesgo en mi ubicación GPS actual">
+                    <span class="btn-icon">🎯</span> <span class="btn-label">Mi Ubicación</span>
+                </button>
+                <button type="button" class="btn-hdr-action" id="btn-hdr-help" title="Guía metodológica, regla 30-30-30 y glosario">
+                    <span class="btn-icon">❓</span> <span class="btn-label">Guía & Glosario</span>
+                </button>
+                <div class="model-status active" id="model-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">XGBoost V2 · 22 features</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Telemetry & Selection Strip -->
+        <div class="telemetry-strip" id="telemetry-strip">
+            <div class="telemetry-inner">
+                <div class="telem-item">
+                    <span class="telem-lbl">📍 Ubicación Activa:</span>
+                    <strong class="telem-val" id="hdr-active-place">Concepción, Región del Biobío</strong>
+                </div>
+                <div class="telem-item">
+                    <span class="telem-lbl">📅 Fecha de Análisis:</span>
+                    <strong class="telem-val" id="hdr-active-date">2026-08-31</strong>
+                </div>
+                <div class="telem-item">
+                    <span class="telem-lbl">🔥 Riesgo Estimado:</span>
+                    <span class="telem-risk-pill" id="hdr-active-risk">Calculando...</span>
+                </div>
+                <div class="telem-item telem-tip">
+                    <span>💡 <em>Haz click en el mapa de Chile para predecir cualquier punto al instante.</em></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── Main Unified Dashboard ─────────────────────────────── -->
+    <main class="unified-dashboard">
+
+        <!-- ════════════════════════════════════════════════════════
+             SECCIÓN 1: MAPA GEOESPACIAL + EVALUACIÓN EN TIEMPO REAL
+             ════════════════════════════════════════════════════════ -->
+        <section class="section-container" id="section-map-predict">
+            
+            <!-- Hero Row: Map on Left, Quick Assessment & Gauge on Right -->
+            <div class="dashboard-grid">
+
+                <!-- Map Panel -->
+                <div class="panel map-panel" id="map-section">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <h2>🗺️ Monitor de Focos & Mapa Geoespacial</h2>
+                            <p class="hint">Focos históricos de CONAF y detecciones satelitales VIIRS en tiempo real</p>
+                        </div>
+                        <div class="map-controls">
+                            <div class="map-layer-selector">
+                                <button class="btn-layer active" data-layer="dark" title="Modo Oscuro Esri">🌙 Dark</button>
+                                <button class="btn-layer" data-layer="satellite" title="Vista Satelital">🛰️ Satélite</button>
+                                <button class="btn-layer" data-layer="voyager" title="Mapa Claro / Topográfico">🗺️ Calles</button>
+                            </div>
+                            <label class="hotspots-toggle active" title="Mostrar/ocultar focos de incendios de CONAF/Itrend/VIIRS">
+                                <input type="checkbox" id="toggle-hotspots" checked>
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-label">🔥 Focos Activos</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Macrozone Quick Jump Bar -->
+                    <div class="macro-zoom-bar">
+                        <span class="macro-zoom-lbl">Zoom Rápido:</span>
+                        <div class="macro-buttons-wrap">
+                            <button type="button" class="btn-macro active" data-macro="all">🇨🇱 Todo Chile</button>
+                            <button type="button" class="btn-macro" data-macro="centro">🏙️ Zona Centro (Valpo / RM)</button>
+                            <button type="button" class="btn-macro" data-macro="centrosur">🌲 Centro-Sur (Maule / Biobío)</button>
+                            <button type="button" class="btn-macro" data-macro="sur">🏔️ Sur (Araucanía / Lagos)</button>
+                            <button type="button" class="btn-macro" data-macro="austral">❄️ Austral</button>
+                        </div>
+                    </div>
+
+                    <!-- Quick City/Commune Search on Map -->
+                    <div class="map-search-bar">
+                        <div class="search-input-wrapper">
+                            <span class="search-icon">🔍</span>
+                            <input type="text" id="map-place-search" placeholder="Buscar comuna, ciudad o parque (ej. Santa Juana, Quillón, Valparaíso, Nahuelbuta...)" autocomplete="off">
+                            <button type="button" id="btn-clear-search" class="btn-clear-search" style="display:none;">✕</button>
+                        </div>
+                        <div id="search-results-dropdown" class="search-results-dropdown" style="display:none;"></div>
+                    </div>
+
+                    <!-- CONAF Hotspots Filter Bar -->
+                    <div class="hotspots-filter-bar">
+                        <div class="filter-item">
+                            <span class="filter-label">Focos Visibles:</span>
+                            <span class="hotspots-badge" id="hotspots-count-badge">1.616 Focos</span>
+                        </div>
+                        <div class="filter-item">
+                            <label for="filter-region">Región:</label>
+                            <select id="filter-region" class="filter-select">
+                                <option value="all">Todas las Regiones</option>
+                                <option value="Valparaíso">Valparaíso</option>
+                                <option value="Metropolitana de Santiago">Metropolitana</option>
+                                <option value="O'Higgins">O'Higgins</option>
+                                <option value="Maule">Maule</option>
+                                <option value="Ñuble">Ñuble</option>
+                                <option value="Biobío">Biobío</option>
+                                <option value="La Araucanía">La Araucanía</option>
+                                <option value="Los Ríos">Los Ríos</option>
+                                <option value="Los Lagos">Los Lagos</option>
+                                <option value="Aysén">Aysén</option>
+                                <option value="Magallanes">Magallanes</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label for="filter-severity">Severidad:</label>
+                            <select id="filter-severity" class="filter-select">
+                                <option value="all">Todas las Magnitudes</option>
+                                <option value="mega">🔴 Megaincendios (>500 ha)</option>
+                                <option value="medium">🟠 Medianos (50–500 ha)</option>
+                                <option value="small">🟡 Menores (<50 ha)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="map-container-rel">
+                        <div id="map"></div>
+                        <div class="map-coords-badge" id="map-coords-badge">📍 Coordenadas: -36.8270, -73.0503</div>
+                    </div>
+
+                    <!-- Map Legend Bar (CONAF Style) -->
+                    <div class="map-legend-bar">
+                        <span class="legend-title">Simbología CONAF:</span>
+                        <div class="legend-item"><span class="legend-dot red-dot"></span> Megaincendio / Alerta Roja (>500 ha)</div>
+                        <div class="legend-item"><span class="legend-dot orange-dot"></span> Alerta Amarilla (50–500 ha)</div>
+                        <div class="legend-item"><span class="legend-dot yellow-dot"></span> Foco Inicial (<50 ha)</div>
+                        <div class="legend-item"><span class="legend-dot purple-dot"></span> Detección Satelital VIIRS</div>
+                    </div>
+                </div>
+
+                <!-- Quick Assessment & Risk Gauge Panel -->
+                <div class="panel controls-panel" id="controls-section">
+                    <div class="panel-header">
+                        <div class="panel-title-group">
+                            <h2>📍 Evaluación de Riesgo en Vivo</h2>
+                            <p class="hint">Predicción instantánea con Machine Learning y Open-Meteo</p>
+                        </div>
+                    </div>
+
+                    <!-- Input Form with Intuitive Steps -->
+                    <form id="predict-form" autocomplete="off">
+                        
+                        <!-- Step 1: Coords & Location -->
+                        <div class="form-section-header">
+                            <span class="step-badge">1</span>
+                            <span class="step-title">Coordenadas del Territorio:</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="input-lat">Latitud (°S)</label>
+                                <input type="number" id="input-lat" step="0.0001" min="-56" max="-17"
+                                       value="-36.8270" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="input-lon">Longitud (°O)</label>
+                                <input type="number" id="input-lon" step="0.0001" min="-76" max="-66"
+                                       value="-73.0503" required>
+                            </div>
+                        </div>
+
+                        <!-- Categorized Presets -->
+                        <div class="presets-categories">
+                            <div class="preset-cat-group">
+                                <span class="preset-cat-lbl">🏙️ Ciudades:</span>
+                                <div class="preset-cat-pills">
+                                    <button type="button" class="btn-preset active" data-lat="-36.8270" data-lon="-73.0503">Concepción</button>
+                                    <button type="button" class="btn-preset" data-lat="-33.4489" data-lon="-70.6693">Santiago</button>
+                                    <button type="button" class="btn-preset" data-lat="-33.0472" data-lon="-71.6127">Valparaíso</button>
+                                    <button type="button" class="btn-preset" data-lat="-35.4264" data-lon="-71.6554">Talca</button>
+                                    <button type="button" class="btn-preset" data-lat="-38.7359" data-lon="-72.5904">Temuco</button>
+                                </div>
+                            </div>
+                            <div class="preset-cat-group">
+                                <span class="preset-cat-lbl">🔥 Focos Críticos:</span>
+                                <div class="preset-cat-pills">
+                                    <button type="button" class="btn-preset fire-preset" data-lat="-37.1742" data-lon="-72.9348">Santa Juana</button>
+                                    <button type="button" class="btn-preset fire-preset" data-lat="-36.7291" data-lon="-72.4746">Quillón</button>
+                                    <button type="button" class="btn-preset fire-preset" data-lat="-35.5903" data-lon="-72.2741">Empedrado</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Date Selection -->
+                        <div class="form-section-header" style="margin-top: 10px;">
+                            <span class="step-badge">2</span>
+                            <span class="step-title">Fecha a Evaluar:</span>
+                        </div>
+                        <div class="form-group">
+                            <div class="date-header-group">
+                                <input type="date" id="input-date" required>
+                                <span class="date-mode-badge" id="date-mode-badge">📍 Tiempo Real</span>
+                            </div>
+                            
+                            <!-- Quick Date Jumps -->
+                            <div class="date-presets-bar">
+                                <span class="date-presets-label">Saltos:</span>
+                                <div class="date-preset-pills">
+                                    <button type="button" class="btn-date-preset" data-mode="today">⚡ Hoy</button>
+                                    <button type="button" class="btn-date-preset" data-mode="yesterday">⚡ Ayer</button>
+                                    <button type="button" class="btn-date-preset" data-mode="past7">⚡ -7 Días</button>
+                                    <button type="button" class="btn-date-preset" data-mode="future7">📅 +7 Días</button>
+                                    <button type="button" class="btn-date-preset fire-date" data-date="2017-01-26">🔥 Mega 2017</button>
+                                    <button type="button" class="btn-date-preset fire-date" data-date="2023-02-03">🔥 Mega 2023</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <button type="submit" id="btn-predict" class="btn-predict">
+                            <span class="btn-text">🔥 Evaluar Riesgo en Vivo</span>
+                            <span class="btn-loading" style="display:none;">
+                                <span class="spinner"></span> Obteniendo clima y topografía...
+                            </span>
+                        </button>
+                    </form>
+
+                    <!-- Gauge Box -->
+                    <div class="gauge-wrapper">
+                        <div class="gauge" id="risk-gauge">
+                            <svg viewBox="0 0 200 120" class="gauge-svg">
+                                <defs>
+                                    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#2E7D32"/>
+                                        <stop offset="33%" style="stop-color:#FF8F00"/>
+                                        <stop offset="66%" style="stop-color:#E65100"/>
+                                        <stop offset="100%" style="stop-color:#B71C1C"/>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M 20 100 A 80 80 0 0 1 180 100"
+                                      fill="none" stroke="#1d1d36" stroke-width="16"
+                                      stroke-linecap="round"/>
+                                <path d="M 20 100 A 80 80 0 0 1 180 100"
+                                      fill="none" stroke="url(#gaugeGrad)" stroke-width="16"
+                                      stroke-linecap="round" opacity="0.45"/>
+                                <line id="gauge-needle" x1="100" y1="100" x2="100" y2="30"
+                                      stroke="#FFD54F" stroke-width="3.5" stroke-linecap="round"
+                                      transform="rotate(-90, 100, 100)"/>
+                                <circle cx="100" cy="100" r="7" fill="#FFD54F"/>
+                            </svg>
+                        </div>
+                        <div class="gauge-value" id="gauge-value">--%</div>
+                        <div class="risk-label" id="risk-label">Calculando...</div>
+                        <p class="risk-description" id="risk-description">Cargando evaluación inicial del punto...</p>
+                        
+                        <!-- 30-30-30 CONAF Rule Live Indicator Box -->
+                        <div class="rule-30-box" id="rule-30-box">
+                            <div class="rule-30-header">
+                                <div class="rule-30-title-wrap">
+                                    <span class="rule-30-icon">📐</span>
+                                    <div>
+                                        <span class="rule-30-title">Regla CONAF 30-30-30</span>
+                                        <span class="rule-30-sub">Tríada crítica de ignición extrema</span>
+                                    </div>
+                                </div>
+                                <span class="rule-30-badge" id="rule-30-badge">Analizando...</span>
+                            </div>
+
+                            <!-- Dynamic Meter Bars -->
+                            <div class="rule-30-meters" id="rule-30-meters">
+                                <div class="rule-meter-item" id="meter-temp-item">
+                                    <div class="meter-info">
+                                        <span class="meter-lbl">🌡️ Temp. Máx (Meta &gt;30°C)</span>
+                                        <strong class="meter-val" id="meter-temp-val">--°C</strong>
+                                    </div>
+                                    <div class="meter-track">
+                                        <div class="meter-fill" id="meter-temp-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                                <div class="rule-meter-item" id="meter-hum-item">
+                                    <div class="meter-info">
+                                        <span class="meter-lbl">💧 Humedad Mín (Límite &lt;30%)</span>
+                                        <strong class="meter-val" id="meter-hum-val">--%</strong>
+                                    </div>
+                                    <div class="meter-track">
+                                        <div class="meter-fill" id="meter-hum-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                                <div class="rule-meter-item" id="meter-wind-item">
+                                    <div class="meter-info">
+                                        <span class="meter-lbl">💨 Viento Máx (Meta &gt;30 km/h)</span>
+                                        <strong class="meter-val" id="meter-wind-val">-- km/h</strong>
+                                    </div>
+                                    <div class="meter-track">
+                                        <div class="meter-fill" id="meter-wind-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="rule-30-factors">
+                                <span class="rule-factor" id="factor-temp">🌡️ Temp &gt; 30°C</span>
+                                <span class="rule-factor" id="factor-hum">💧 Hum &lt; 30%</span>
+                                <span class="rule-factor" id="factor-wind">💨 Viento &gt; 30 km/h</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Protocol Box -->
+                        <div class="protocol-box" id="protocol-box">
+                            <span class="protocol-icon">🛡️</span>
+                            <div class="protocol-content">
+                                <span class="protocol-title">Protocolo de Acción Institucional (CONAF / SENAPRED):</span>
+                                <p class="protocol-text" id="protocol-text">Mantener vigilancia rutinaria y canales de comunicación activos.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Export Actions in Hero Card -->
+                    <div class="report-export-bar hero-export-bar">
+                        <div class="export-buttons-group">
+                            <a href="#" id="btn-export-dossier" target="_blank" class="btn-export btn-export-pdf">📄 Dossier PDF</a>
+                            <a href="#" id="btn-export-json" target="_blank" class="btn-export btn-export-json">💾 JSON</a>
+                            <a href="#" id="btn-export-csv" target="_blank" class="btn-export btn-export-csv">📊 CSV</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Detailed Analytical Results Grid (Spans cleanly below Map & Controls) -->
+            <div id="result-container" class="result-container evaluation-details-panel">
+                <div class="analysis-grid">
+
+                    <!-- Left Column: Spatial, Weather, 7-Day Past Evolution, Provenance -->
+                    <div class="analysis-col">
+
+                        <!-- Real Spatial Features Display -->
+                        <div class="panel sub-panel spatial-summary" id="spatial-summary">
+                            <div class="sub-panel-header">
+                                <h3>🌲 Entorno Geoespacial y Terreno (MapBiomas / SRTM / GeoNames)</h3>
+                                <span class="fuel-risk-badge" id="sp-fuel-badge">🔥 Combustible Forestal</span>
+                            </div>
+                            <div class="spatial-grid">
+                                <div class="spatial-card">
+                                    <span class="spatial-icon">🌿</span>
+                                    <span class="spatial-val" id="sp-landcover">Plantación Forestal</span>
+                                    <span class="spatial-lbl">MapBiomas 2022 (30m)</span>
+                                </div>
+                                <div class="spatial-card">
+                                    <span class="spatial-icon">🏘️</span>
+                                    <span class="spatial-val" id="sp-town">Concepción (0.8 km)</span>
+                                    <span class="spatial-lbl">GeoNames Chile</span>
+                                </div>
+                                <div class="spatial-card">
+                                    <span class="spatial-icon">⛰️</span>
+                                    <span class="spatial-val" id="sp-elevation">30 m</span>
+                                    <span class="spatial-lbl">NASA SRTM v3.0</span>
+                                </div>
+                                <div class="spatial-card">
+                                    <span class="spatial-icon">📐</span>
+                                    <span class="spatial-val" id="sp-slope">1.4°</span>
+                                    <span class="spatial-lbl">Pendiente Topográfica</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Slope Incline Visual Bar -->
+                            <div class="slope-meter-wrapper">
+                                <div class="slope-meter-labels">
+                                    <span>0° Plano</span>
+                                    <span id="slope-meter-current">Pendiente: 1.4° (Bajo Escurrimiento)</span>
+                                    <span>45° Acantilado</span>
+                                </div>
+                                <div class="slope-meter-track">
+                                    <div class="slope-meter-fill" id="slope-meter-fill" style="width: 3%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weather Display -->
+                        <div class="panel sub-panel weather-summary" id="weather-summary">
+                            <div class="sub-panel-header">
+                                <h3>🌤️ Condiciones Meteorológicas (Ventana de 7 Días)</h3>
+                                <span class="weather-source-tag">📡 Open-Meteo ECMWF</span>
+                            </div>
+                            <div class="weather-grid">
+                                <div class="weather-card">
+                                    <span class="weather-icon">🌡️</span>
+                                    <span class="weather-val" id="w-temp">--°C</span>
+                                    <span class="weather-lbl">Temp. Máxima</span>
+                                    <span class="weather-threshold" id="w-temp-status">Normal</span>
+                                </div>
+                                <div class="weather-card">
+                                    <span class="weather-icon">💧</span>
+                                    <span class="weather-val" id="w-humidity">--%</span>
+                                    <span class="weather-lbl">Humedad Mínima</span>
+                                    <span class="weather-threshold" id="w-hum-status">Normal</span>
+                                </div>
+                                <div class="weather-card">
+                                    <span class="weather-icon">🌧️</span>
+                                    <span class="weather-val" id="w-precip">-- mm</span>
+                                    <span class="weather-lbl">Precip. Acumulada</span>
+                                    <span class="weather-threshold" id="w-precip-status">Seco</span>
+                                </div>
+                                <div class="weather-card">
+                                    <span class="weather-icon">💨</span>
+                                    <span class="weather-val" id="w-wind">-- km/h</span>
+                                    <span class="weather-lbl">Viento Máximo</span>
+                                    <span class="weather-threshold" id="w-wind-status">Calmo</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Past 7-Day Evolution Breakdown -->
+                        <div class="panel sub-panel past-evolution-summary" id="past-evolution-summary">
+                            <div class="sub-panel-header">
+                                <div>
+                                    <h3>⏪ Evolución Diaria Previa (Ventana 7 Días Anteriores)</h3>
+                                    <p class="past-evolution-subtitle">Registro diario previo que alimenta la ventana acumulada y desecación de combustible</p>
+                                </div>
+                            </div>
+                            <div class="past-days-grid" id="past-days-grid">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Data Provenance & API Transparency Panel -->
+                        <div class="panel sub-panel provenance-panel" id="provenance-panel">
+                            <div class="provenance-header">
+                                <h3>🛰️ Trazabilidad de APIs & Datos Oficiales</h3>
+                                <span class="provenance-status-badge" id="prov-status-badge">🟢 API Conectada</span>
+                            </div>
+                            <div class="provenance-body">
+                                <div class="prov-item">
+                                    <span class="prov-label">Fuente Meteorológica:</span>
+                                    <strong class="prov-val" id="prov-weather-source">Open-Meteo API</strong>
+                                </div>
+                                <div class="prov-metrics-row">
+                                    <span>Latencia: <strong id="prov-latency">— ms</strong></span>
+                                    <span>Código HTTP: <strong id="prov-http-status">200 OK</strong></span>
+                                    <span>Muestras Horarias: <strong id="prov-hourly-samples">168 hrs (7 días)</strong></span>
+                                </div>
+                                <details class="prov-details-toggle">
+                                    <summary>🔍 Inspeccionar URL de Consulta Directa a Open-Meteo</summary>
+                                    <div class="prov-url-box">
+                                        <a href="#" target="_blank" id="prov-api-link" class="prov-url-link">https://api.open-meteo.com/...</a>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Column: SHAP Local Explainability & Query History -->
+                    <div class="analysis-col">
+
+                        <!-- SHAP Factors Breakdown -->
+                        <div class="panel sub-panel shap-summary" id="shap-summary">
+                            <div class="sub-panel-header">
+                                <div>
+                                    <h3>🔍 Factores Clave que Influyen en el Riesgo (SHAP)</h3>
+                                    <p class="shap-subtitle">Explicabilidad local: contribución de cada variable climática y de terreno</p>
+                                </div>
+                                <!-- Toggle Bar / Plain Text Mode -->
+                                <div class="shap-view-toggle">
+                                    <button type="button" class="btn-shap-view active" id="btn-shap-bars" title="Ver gráfico de contribución">📊 Barras</button>
+                                    <button type="button" class="btn-shap-view" id="btn-shap-text" title="Ver resumen en lenguaje natural">💬 Diagnóstico</button>
+                                </div>
+                            </div>
+
+                            <!-- View 1: SHAP Waterfall Bars -->
+                            <div class="shap-bars" id="shap-bars">
+                                <div class="loading-placeholder-small"><span class="spinner"></span> Calculando explicaciones SHAP...</div>
+                            </div>
+
+                            <!-- View 2: Plain Language Narrative Explanation -->
+                            <div class="shap-narrative" id="shap-narrative" style="display:none;">
+                                <div class="narrative-content" id="narrative-content">
+                                    <!-- Filled by JS -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- History Section -->
+                        <div class="panel sub-panel history-section" id="history-section" style="display:none;">
+                            <div class="history-header">
+                                <h3>📋 Historial de Consultas Recientes</h3>
+                                <button type="button" class="btn-clear-history" id="btn-clear-history">Limpiar</button>
+                            </div>
+                            <div id="history-list" class="history-list"></div>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ════════════════════════════════════════════════════════
+             SECCIÓN 2: PRONÓSTICO DE RIESGO A 7 DÍAS
+             ════════════════════════════════════════════════════════ -->
+        <section class="section-container" id="section-forecast">
+            <div class="panel forecast-panel">
+                <div class="panel-header">
+                    <div class="panel-title-group">
+                        <h2>📅 Pronóstico de Riesgo a 7 Días (Open-Meteo Forecast)</h2>
+                        <p class="hint">Evolución de riesgo meteorológico proyectada para la próxima semana en el punto seleccionado. <em>Haz click en cualquier día para evaluarlo.</em></p>
+                    </div>
+                    <button class="btn-refresh-forecast" id="btn-refresh-forecast">🔄 Actualizar Pronóstico</button>
+                </div>
+
+                <div class="forecast-location-bar" id="forecast-location-bar">
+                    <span>📍 Coordenadas: <strong id="forecast-coords-display">-36.8270, -73.0503</strong></span>
+                    <span>🌿 Cobertura: <strong id="forecast-landcover-display">Plantación Forestal</strong></span>
+                    <span class="forecast-peak-badge" id="forecast-peak-badge">Pico Semanal: Calculando...</span>
+                </div>
+
+                <div class="forecast-grid" id="forecast-grid">
+                    <div class="loading-placeholder">
+                        <span class="spinner"></span> Obteniendo pronóstico meteorológico a 7 días...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════════════════════════════════════════════════════════
+             SECCIÓN 3: SIMULADOR CLIMÁTICO ("WHAT-IF")
+             ════════════════════════════════════════════════════════ -->
+        <section class="section-container" id="section-simulator">
+            <div class="panel simulator-panel">
+                <div class="panel-header">
+                    <div class="panel-title-group">
+                        <h2>🧪 Simulador Climático e Impacto de Escenarios ("¿Qué pasaría si...?")</h2>
+                        <p class="hint">Experimenta cómo alteran el riesgo olas de calor, vientos puelche, sequías o cambios en uso de suelo</p>
+                    </div>
+                </div>
+
+                <!-- Scenario Presets -->
+                <div class="scenario-presets">
+                    <span class="scenario-presets-label">Escenarios Predefinidos:</span>
+                    <div class="scenario-buttons-wrap">
+                        <button class="btn-scenario" data-temp="8" data-hum="-20" data-wind="15">🔥 Ola de Calor Extrema (+8°C, -20% Hum, +15km/h)</button>
+                        <button class="btn-scenario" data-temp="4" data-hum="-15" data-wind="30">💨 Viento Puelche / Raco (Viento +30km/h)</button>
+                        <button class="btn-scenario" data-temp="-5" data-hum="25" data-wind="-10">🌧️ Frente de Lluvias (-5°C, +25% Hum)</button>
+                        <button class="btn-scenario" data-temp="0" data-hum="0" data-wind="0" data-cover="3">🌲 Restauración a Bosque Nativo</button>
+                        <button class="btn-scenario-reset" id="btn-reset-scenario">↺ Restablecer</button>
+                    </div>
+                </div>
+
+                <div class="simulator-layout">
+                    <!-- Controls Column -->
+                    <div class="simulator-controls">
+                        
+                        <!-- Slider: Temp -->
+                        <div class="sim-control-group">
+                            <div class="sim-control-header">
+                                <label for="sim-temp">🌡️ Variación de Temperatura Máxima:</label>
+                                <span class="sim-val-badge" id="badge-temp">+0.0°C</span>
+                            </div>
+                            <input type="range" id="sim-temp" min="-10" max="15" step="0.5" value="0">
+                            <div class="sim-range-labels"><span>-10°C</span><span>0°C</span><span>+15°C</span></div>
+                        </div>
+
+                        <!-- Slider: Humidity -->
+                        <div class="sim-control-group">
+                            <div class="sim-control-header">
+                                <label for="sim-humidity">💧 Variación de Humedad Mínima:</label>
+                                <span class="sim-val-badge" id="badge-humidity">+0%</span>
+                            </div>
+                            <input type="range" id="sim-humidity" min="-30" max="30" step="1" value="0">
+                            <div class="sim-range-labels"><span>-30%</span><span>0%</span><span>+30%</span></div>
+                        </div>
+
+                        <!-- Slider: Wind -->
+                        <div class="sim-control-group">
+                            <div class="sim-control-header">
+                                <label for="sim-wind">💨 Variación de Viento Máximo:</label>
+                                <span class="sim-val-badge" id="badge-wind">+0 km/h</span>
+                            </div>
+                            <input type="range" id="sim-wind" min="-20" max="40" step="1" value="0">
+                            <div class="sim-range-labels"><span>-20 km/h</span><span>0 km/h</span><span>+40 km/h</span></div>
+                        </div>
+
+                        <!-- Select: Land Cover -->
+                        <div class="sim-control-group">
+                            <label for="sim-landcover">🌿 Tipo de Vegetación / Cobertura:</label>
+                            <select id="sim-landcover" class="sim-select">
+                                <option value="">Mantener cobertura original (MapBiomas)</option>
+                                <option value="9">Plantación Forestal (Pino / Eucalipto)</option>
+                                <option value="3">Bosque Nativo</option>
+                                <option value="5">Matorral Nativo</option>
+                                <option value="12">Pastizal / Pradera</option>
+                                <option value="21">Mosaico Agrícola</option>
+                                <option value="24">Área Urbana / Infraestructura</option>
+                            </select>
+                        </div>
+
+                        <!-- Slider: Slope -->
+                        <div class="sim-control-group">
+                            <div class="sim-control-header">
+                                <label for="sim-slope">📐 Pendiente del Terreno:</label>
+                                <span class="sim-val-badge" id="badge-slope">Original</span>
+                            </div>
+                            <input type="range" id="sim-slope" min="0" max="45" step="1" value="5">
+                            <div class="sim-range-labels"><span>0° (Plano)</span><span>20° (Colina)</span><span>45° (Ladereada extrema)</span></div>
+                        </div>
+
+                    </div>
+
+                    <!-- Comparison Column -->
+                    <div class="simulator-comparison">
+                        <div class="comparison-cards">
+                            <!-- Baseline Card -->
+                            <div class="comparison-card baseline-card">
+                                <h4>Condición Base</h4>
+                                <div class="comp-prob" id="comp-base-prob">--%</div>
+                                <div class="comp-risk" id="comp-base-risk">Calculando...</div>
+                                <ul class="comp-details" id="comp-base-details">
+                                    <li>🌡️ Temp: <span>—</span></li>
+                                    <li>💧 Humedad: <span>—</span></li>
+                                    <li>💨 Viento: <span>—</span></li>
+                                    <li>🌿 Vegetación: <span>—</span></li>
+                                </ul>
+                            </div>
+
+                            <!-- Delta Indicator -->
+                            <div class="comparison-delta-indicator">
+                                <span class="delta-arrow">➜</span>
+                                <div class="delta-badge" id="comp-delta-badge">+0.0%</div>
+                            </div>
+
+                            <!-- Simulated Card -->
+                            <div class="comparison-card sim-card">
+                                <h4>Condición Simulada</h4>
+                                <div class="comp-prob" id="comp-sim-prob">--%</div>
+                                <div class="comp-risk" id="comp-sim-risk">Calculando...</div>
+                                <ul class="comp-details" id="comp-sim-details">
+                                    <li>🌡️ Temp: <span>—</span></li>
+                                    <li>💧 Humedad: <span>—</span></li>
+                                    <li>💨 Viento: <span>—</span></li>
+                                    <li>🌿 Vegetación: <span>—</span></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Simulated SHAP Factors -->
+                        <div class="sim-shap-container">
+                            <h4>🔍 Impacto de Variables en el Escenario Simulado (SHAP)</h4>
+                            <div class="shap-bars" id="sim-shap-bars">
+                                <!-- Filled by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════════════════════════════════════════════════════════
+             SECCIÓN 4: PANORAMA REGIONAL Y VULNERABILIDAD DE CHILE
+             ════════════════════════════════════════════════════════ -->
+        <section class="section-container" id="section-regional">
+            <div class="panel regional-panel">
+                <div class="panel-header">
+                    <div class="panel-title-group">
+                        <h2>🗺️ Panorama Regional y Vulnerabilidad de Incendios en Chile</h2>
+                        <p class="hint">Distribución de vulnerabilidad y carga de combustible en las 16 regiones del país</p>
+                    </div>
+                    <!-- Regional Filter Tabs -->
+                    <div class="reg-filter-tabs">
+                        <button type="button" class="btn-reg-tab active" data-filter="all">Todas (16)</button>
+                        <button type="button" class="btn-reg-tab" data-filter="centro">Centro</button>
+                        <button type="button" class="btn-reg-tab" data-filter="centrosur">Centro-Sur</button>
+                        <button type="button" class="btn-reg-tab" data-filter="sur">Sur</button>
+                        <button type="button" class="btn-reg-tab" data-filter="austral">Austral</button>
+                    </div>
+                </div>
+
+                <div class="regional-cards-grid" id="regional-cards-grid">
+                    <div class="loading-placeholder">
+                        <span class="spinner"></span> Cargando panorama regional de Chile...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ════════════════════════════════════════════════════════
+             SECCIÓN 5: MÉTRICAS Y GALERÍA DE DIAGNÓSTICO
+             ════════════════════════════════════════════════════════ -->
+        <section class="section-container" id="section-diagnostics">
+            
+            <!-- Model Metrics Section -->
+            <div class="panel metrics-panel" id="metrics-section">
+                <div class="panel-header">
+                    <div class="panel-title-group">
+                        <h2>📊 Métricas Institucionales del Modelo XGBoost V2</h2>
+                        <p class="hint">Validación temporal estricta (Entrenamiento 2002–2018, Evaluación 2019–2020) sin data leakage</p>
+                    </div>
+                </div>
+                <div class="metrics-grid" id="metrics-grid">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <!-- Evaluation Plots Gallery -->
+            <div class="panel gallery-panel" id="gallery-section">
+                <div class="panel-header">
+                    <div class="panel-title-group">
+                        <h2>🔬 Galería de Diagnóstico y Análisis de Rendimiento</h2>
+                        <p class="hint">Haz click en cualquier gráfico para ampliarlo en alta definición</p>
+                    </div>
+                </div>
+                <div class="gallery-grid" id="gallery-grid">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ── Lightbox for plots ─────────────────────────────── -->
+        <div id="lightbox" class="lightbox" style="display:none;">
+            <div class="lightbox-overlay" id="lightbox-overlay"></div>
+            <div class="lightbox-content">
+                <button class="lightbox-close" id="lightbox-close">&times;</button>
+                <img id="lightbox-img" src="" alt="Gráfico ampliado">
+                <p id="lightbox-caption" class="lightbox-caption"></p>
+            </div>
+        </div>
+
+        <!-- ── Help & Glossary Modal ──────────────────────────── -->
+        <div id="guide-modal" class="guide-modal" style="display:none;">
+            <div class="guide-overlay" id="guide-overlay"></div>
+            <div class="guide-modal-card">
+                <div class="guide-modal-header">
+                    <div class="guide-title-group">
+                        <span class="guide-icon">📖</span>
+                        <div>
+                            <h3>Guía Metodológica & Glosario Técnico</h3>
+                            <p class="guide-sub">SIpi Incendios · Sistema Inteligente de Predicción de Incendios Forestales</p>
+                        </div>
+                    </div>
+                    <button class="guide-close" id="btn-close-guide">&times;</button>
+                </div>
+                <div class="guide-modal-body">
+                    <div class="guide-section">
+                        <h4>1. 📐 La Regla del 30-30-30 (CONAF / Bomberos)</h4>
+                        <p>La regla empírica del 30-30-30 define condiciones críticas para la ignición y comportamiento extremo de incendios forestales en Chile:</p>
+                        <ul class="guide-bullets">
+                            <li><strong>🌡️ Temperatura &gt; 30°C:</strong> Provoca aceleración en la desecación del combustible fino vegetal.</li>
+                            <li><strong>💧 Humedad Relativa &lt; 30%:</strong> Reduce el contenido de humedad del follaje a niveles de ignición instantánea.</li>
+                            <li><strong>💨 Viento &gt; 30 km/h:</strong> Oxigena las llamas y transporta pavesas a kilómetros de distancia generando nuevos focos.</li>
+                        </ul>
+                    </div>
+
+                    <div class="guide-section">
+                        <h4>2. 🤖 Modelo de Machine Learning (XGBoost V2 · 22 Variables)</h4>
+                        <p>El núcleo predictivo combina árboles de decisión potenciados (Gradient Boosting) entrenados con más de 20 años de historia real de incendios (1985–2023) cruzando:</p>
+                        <ul class="guide-bullets">
+                            <li><strong>Meteorología ERA5 / Open-Meteo:</strong> Temperaturas, humedad mínima y media, vientos, sequedad y precipitación acumulada de 7 días.</li>
+                            <li><strong>Cobertura Vegetal MapBiomas Chile 2022 (30m):</strong> Tipología de combustible (Plantación, Bosque Nativo, Matorral, Pastizal).</li>
+                            <li><strong>Topografía Radar NASA SRTM:</strong> Elevación y pendiente (el fuego asciende 2x más rápido en laderas pronunciadas).</li>
+                            <li><strong>Antropogénico GeoNames:</strong> Distancia exacta a caminos y centros poblados.</li>
+                        </ul>
+                    </div>
+
+                    <div class="guide-section">
+                        <h4>3. 🔍 Explicabilidad Local SHAP (SHapley Additive exPlanations)</h4>
+                        <p>Cada predicción incluye cálculo de valores Shapley en tiempo real:</p>
+                        <ul class="guide-bullets">
+                            <li><strong style="color:#FF5722;">Barras Naranjas / Rojas (+):</strong> Variables que aumentaron el riesgo de incendio en esa fecha y lugar.</li>
+                            <li><strong style="color:#4CAF50;">Barras Verdes (-):</strong> Variables protectoras que redujeron el riesgo (ej. alta humedad, lluvias previas, baja pendiente).</li>
+                        </ul>
+                    </div>
+
+                    <div class="guide-section">
+                        <h4>4. 🚨 Escala de Alertas Institucionales</h4>
+                        <div class="guide-alerts-grid">
+                            <div class="guide-alert-item low">
+                                <strong>🟢 Riesgo Bajo (&lt; 25%)</strong>
+                                <span>Condiciones favorables. Vigilancia preventiva normal.</span>
+                            </div>
+                            <div class="guide-alert-item moderate">
+                                <strong>🟡 Riesgo Moderado (25–50%)</strong>
+                                <span>Alerta Temprana. Prohibición de quemas agrícolas.</span>
+                            </div>
+                            <div class="guide-alert-item high">
+                                <strong>🟠 Riesgo Alto (50–75%)</strong>
+                                <span>Alerta Amarilla. Alistamiento de brigadas y helicópteros.</span>
+                            </div>
+                            <div class="guide-alert-item critical">
+                                <strong>🔴 Riesgo Crítico (&gt; 75%)</strong>
+                                <span>Alerta Roja. Peligro extremo de propagación descontrolada.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── System Technical Report Modal ──────────────────────── -->
+        <div id="report-modal" class="report-modal" style="display:none;">
+            <div class="report-overlay" id="report-overlay"></div>
+            <div class="report-modal-card">
+                <div class="report-modal-header">
+                    <div class="report-title-group">
+                        <span class="report-icon">🌲</span>
+                        <div>
+                            <h3>SIpi Incendios — Informe Técnico y Ejecutivo del Sistema</h3>
+                            <p class="report-sub">Arquitectura, Pipeline ETL, Modelo XGBoost V2, SHAP y Resultados Operativos</p>
+                        </div>
+                    </div>
+                    <div class="report-header-actions">
+                        <button type="button" class="btn-report-print" id="btn-report-print" title="Imprimir informe o guardar en PDF">🖨️ Imprimir / Guardar en PDF</button>
+                        <button class="report-close" id="btn-close-report" title="Cerrar informe">&times;</button>
+                    </div>
+                </div>
+
+                <!-- Internal Section Quick Navigation -->
+                <div class="report-modal-nav">
+                    <button type="button" class="btn-rep-nav active" data-rep="exec">1. Resumen Ejecutivo</button>
+                    <button type="button" class="btn-rep-nav" data-rep="arch">2. Arquitectura</button>
+                    <button type="button" class="btn-rep-nav" data-rep="etl">3. Pipeline ETL (6 Fuentes)</button>
+                    <button type="button" class="btn-rep-nav" data-rep="features">4. 22 Variables</button>
+                    <button type="button" class="btn-rep-nav" data-rep="ml">5. Modelo XGBoost V2</button>
+                    <button type="button" class="btn-rep-nav" data-rep="shap">6. Explicabilidad SHAP</button>
+                    <button type="button" class="btn-rep-nav" data-rep="api">7. API & Backend</button>
+                    <button type="button" class="btn-rep-nav" data-rep="findings">8. Hallazgos & Recomendaciones</button>
+                </div>
+
+                <div class="report-modal-body" id="report-modal-body">
+                    
+                    <!-- Section 1: Resumen Ejecutivo -->
+                    <div class="report-section" id="rep-sec-exec">
+                        <h4>1. 📋 Resumen Ejecutivo y Ficha Técnica Institucional</h4>
+                        <p><strong>SIpi Incendios</strong> es una plataforma científica y tecnológica de vanguardia para la predicción, proyección y explicación de incendios forestales en Chile continental. Integra registros históricos oficiales de CONAF e Itrend (1985–2023), detecciones satelitales térmicas infrarrojas de NASA VIIRS (2017–2024), cartografía de uso de suelo a 30m de MapBiomas Chile 2022, topografía de radar NASA SRTM v3.0, más de 6.900 poblados de GeoNames y modelos meteorológicos de reanálisis atmosférico ERA5 en tiempo real vía Open-Meteo API.</p>
+                        
+                        <div class="report-table-wrapper">
+                            <table class="report-table">
+                                <thead>
+                                    <tr>
+                                        <th>Dimensión Técnica</th>
+                                        <th>Especificación en Producción</th>
+                                        <th>Relevancia Operativa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Modelo Predictivo</strong></td>
+                                        <td><span class="badge-code">XGBoost V2 (Gradient Boosted Trees)</span></td>
+                                        <td>Optimizado para relaciones no lineales extremas entre clima y pendiente.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Variables de Entrada</strong></td>
+                                        <td><strong>22 features</strong> normalizadas</td>
+                                        <td>Cruce multidimensional de clima (7d), suelo, orografía y factores antrópicos.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Validación Temporal</strong></td>
+                                        <td>Split 2002–2018 (Train) vs 2019–2020 (Test)</td>
+                                        <td>Garantiza 0% de data leakage (fuga temporal de olas de calor).</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Área Bajo la Curva (ROC-AUC)</strong></td>
+                                        <td><strong style="color:#00E676;">0.7932</strong></td>
+                                        <td>Capacidad de discriminación estadística de alto estándar internacional.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Recall / Sensibilidad</strong></td>
+                                        <td><strong style="color:#00E676;">88.84%</strong> de incendios detectados</td>
+                                        <td>Minimiza los falsos negativos protegiendo vidas y bienes estratégicos.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Explicabilidad</strong></td>
+                                        <td>SHAP TreeExplainer en vivo (&lt;15 ms)</td>
+                                        <td>Auditoría total: desglose de factores aceleradores (+) y protectores (-).</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Latencia de Inferencia</strong></td>
+                                        <td>&lt; 850 ms (Caché TTL: ~12 ms)</td>
+                                        <td>Respuesta instantánea para toma de decisiones tácticas en brigadas.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Arquitectura -->
+                    <div class="report-section" id="rep-sec-arch">
+                        <h4>2. 🏗️ Arquitectura Global del Sistema</h4>
+                        <p>La solución se estructura en cuatro capas desacopladas que aseguran robustez, trazabilidad y facilidad de despliegue:</p>
+                        <div class="arch-flow-diagram">
+                            <div class="arch-node">
+                                <span class="arch-icon">🛰️</span>
+                                <strong>1. Fuentes Geoespaciales</strong>
+                                <span>CONAF, VIIRS, Open-Meteo, MapBiomas, SRTM, GeoNames</span>
+                            </div>
+                            <div class="arch-arrow">➔</div>
+                            <div class="arch-node">
+                                <span class="arch-icon">⚙️</span>
+                                <strong>2. Pipeline ETL</strong>
+                                <span>Filtrado continental, BallTree esférico, 22 features, Negative Sampling</span>
+                            </div>
+                            <div class="arch-arrow">➔</div>
+                            <div class="arch-node">
+                                <span class="arch-icon">🤖</span>
+                                <strong>3. Inferencia & SHAP</strong>
+                                <span>XGBoost V2, Optuna, TreeExplainer, Cache TTL 30m, Flask API</span>
+                            </div>
+                            <div class="arch-arrow">➔</div>
+                            <div class="arch-node">
+                                <span class="arch-icon">💻</span>
+                                <strong>4. Dashboard Web</strong>
+                                <span>Leaflet 1.9, Tacómetro SVG, Regla 30-30-30, Simulador What-If, Exportación</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: ETL & 6 Fuentes -->
+                    <div class="report-section" id="rep-sec-etl">
+                        <h4>3. 📂 Pipeline ETL y las 6 Fuentes de Datos Integradas</h4>
+                        <div class="report-grid-sources">
+                            <div class="source-card">
+                                <strong>1. CONAF & Itrend (1985–2023)</strong>
+                                <p>109.985 eventos históricos en tierra con coordenadas, fecha, hora, causalidad de origen, duración de combate y daño desglosado por tipo de vegetación.</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>2. NASA VIIRS Suomi-NPP (2017–2024)</strong>
+                                <p>Detecciones orbitales de anomalías térmicas infrarrojas a 375 metros para contrastar y validar los reportes de brigadas terrestres.</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>3. Open-Meteo API (ERA5 - ECMWF)</strong>
+                                <p>Reanálisis atmosférico de ventanas de 7 días previas (168 hrs continuas): temperaturas máximas/medias, humedad relativa, viento y humedad volumétrica del suelo.</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>4. MapBiomas Chile (Colección 1 - 2022)</strong>
+                                <p>Ráster GeoTIFF a 30m de resolución para clasificar el tipo de combustible de suelo (pino, eucalipto, bosque nativo, matorral, pastizal o zona urbana).</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>5. NASA SRTM v3.0 (Radar Topográfico)</strong>
+                                <p>Cálculo de elevación digital y derivación analítica de la pendiente del terreno (α) y aspecto mediante gradientes espaciales de diferencias finitas a 30m.</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>6. GeoNames Chile (Asentamientos Humanos)</strong>
+                                <p>Indexación esférica de 6.967 poblados y comunas en un árbol BallTree Haversine para obtener la distancia geodésica exacta al asentamiento más próximo.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 4: 22 Variables -->
+                    <div class="report-section" id="rep-sec-features">
+                        <h4>4. 📊 Diccionario de las 22 Variables del Modelo</h4>
+                        <div class="report-table-wrapper">
+                            <table class="report-table">
+                                <thead>
+                                    <tr>
+                                        <th>Categoría</th>
+                                        <th>Variable</th>
+                                        <th>Tipo / Rango</th>
+                                        <th>Rol en la Dinámica del Fuego</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td><strong>Clima (Ventana 7d)</strong></td><td><code>temp_max_window</code>, <code>temp_mean_window</code></td><td>°C</td><td>Desecamiento de combustible fino por calor acumulado.</td></tr>
+                                    <tr><td><strong>Clima (Ventana 7d)</strong></td><td><code>humidity_min_window</code>, <code>humidity_mean_window</code></td><td>% (0–100)</td><td>Pérdida de humedad del follaje (crítico bajo 30%).</td></tr>
+                                    <tr><td><strong>Clima (Ventana 7d)</strong></td><td><code>precip_acc_window</code>, <code>precip_drought</code></td><td>mm / binario</td><td>Inhibición temporal de la ignición tras lluvias recientes.</td></tr>
+                                    <tr><td><strong>Clima (Ventana 7d)</strong></td><td><code>wind_speed_max_window</code>, <code>wind_speed_mean_window</code></td><td>km/h</td><td>Oxigenación de llamas y dispersión de pavesas incandescentes.</td></tr>
+                                    <tr><td><strong>Suelo</strong></td><td><code>soil_temp_mean</code>, <code>soil_moisture_mean</code></td><td>°C / m³/m³</td><td>Estrés hídrico radicular y desecación profunda de la biomasa.</td></tr>
+                                    <tr><td><strong>Vegetación</strong></td><td><code>land_cover_class</code></td><td>MapBiomas ID</td><td>Carga calórica según tipo de combustible (Pino vs Nativo).</td></tr>
+                                    <tr><td><strong>Antrópico</strong></td><td><code>dist_nearest_town_km</code></td><td>km</td><td>Exposición a causas humanas (tránsito en caminos, negligencia).</td></tr>
+                                    <tr><td><strong>Topografía</strong></td><td><code>elevation</code>, <code>slope_deg</code>, <code>aspect_deg</code></td><td>m / grados</td><td>Aceleración convectiva en laderas empinadas orientadas al sol.</td></tr>
+                                    <tr><td><strong>Fenología</strong></td><td><code>month_sin</code>, <code>month_cos</code>, <code>day_of_year</code>, <code>season</code></td><td>Cíclico [-1, 1]</td><td>Ciclos de floración, sequía estival y senescencia vegetal.</td></tr>
+                                    <tr><td><strong>Interacción</strong></td><td><code>dryness_index</code>, <code>fire_weather_index</code>, <code>temp_humidity_ratio</code></td><td>Fórmulas</td><td>Índices combinados de evaporación extrema y peligro meteorológico.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Modelo XGBoost V2 -->
+                    <div class="report-section" id="rep-sec-ml">
+                        <h4>5. 🤖 Modelamiento Predictivo XGBoost V2</h4>
+                        <p>El núcleo predictivo utiliza árboles de decisión potenciados (Gradient Boosting) entrenados bajo una estricta estrategia para prevenir el sobreajuste y el sesgo estacional:</p>
+                        <ul class="guide-bullets">
+                            <li><strong>Split Temporal Estricto:</strong> Entrenamiento en 2002–2018 (5.848 muestras) y evaluación en 2019–2020 (968 muestras). Ninguna ola de calor de prueba fue vista durante el ajuste.</li>
+                            <li><strong>Optimización Bayesiana (Optuna):</strong> 80 iteraciones para calibrar profundidad (6), tasa de aprendizaje (0.045), submuestreo de filas (0.85) y regularización Ridge/Lasso.</li>
+                            <li><strong>Ponderación de Muestras (Sample Weights):</strong> Mayor peso a eventos estivales reales (1.35) para asegurar sensibilidad operativa sin generar falsas alarmas invernales.</li>
+                            <li><strong>Muestreo Negativo Inteligente:</strong> Puntos no incendiados seleccionados exclusivamente en zonas con combustible vegetal real (evitando falsos negativos en el océano o glaciares).</li>
+                        </ul>
+                    </div>
+
+                    <!-- Section 6: SHAP -->
+                    <div class="report-section" id="rep-sec-shap">
+                        <h4>6. 🔍 Explicabilidad Local en Vivo con SHAP</h4>
+                        <p>Cada vez que el usuario consulta un punto o una fecha, el servidor ejecuta <code>shap.TreeExplainer</code> en menos de 15 ms, desglosando la probabilidad en aportes exactos:</p>
+                        <ul class="guide-bullets">
+                            <li><strong style="color:#FF5252;">Factores Aceleradores (+):</strong> Barras rojas/naranjas que aumentaron el riesgo (ej. temperatura de 34°C, vientos sobre 30 km/h, alta pendiente o monocultivo de pino).</li>
+                            <li><strong style="color:#00E676;">Factores Protectores (-):</strong> Barras verdes que mitigaron el peligro (ej. alta humedad del aire, lluvia acumulada en los 7 días previos o bosque nativo bien hidratado).</li>
+                        </ul>
+                    </div>
+
+                    <!-- Section 7: API & Backend -->
+                    <div class="report-section" id="rep-sec-api">
+                        <h4>7. 🔌 API REST y Arquitectura de Alta Disponibilidad</h4>
+                        <p>El servidor Flask implementa optimizaciones clave para uso institucional continuo:</p>
+                        <ul class="guide-bullets">
+                            <li><strong>In-Memory Cache (TTL 30 min):</strong> Acelera consultas repetidas de 1.200 ms a 12 ms y protege contra cuotas de rate limiting de APIs externas.</li>
+                            <li><strong>Extracción Ráster O(1):</strong> Muestreo espacial inmediato sobre el archivo GeoTIFF de MapBiomas sin cargar los 9 GB en memoria RAM.</li>
+                            <li><strong>Búsqueda Geodésica O(log N):</strong> Búsqueda de poblados en microsegundos mediante BallTree con métrica Haversine.</li>
+                            <li><strong>Formatos de Exportación:</strong> Generación instantánea de informes técnicos en HTML imprimible, JSON estructurado y CSV tabular.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Section 8: Hallazgos & Recomendaciones -->
+                    <div class="report-section" id="rep-sec-findings">
+                        <h4>8. 💡 Hallazgos Cuantitativos y Recomendaciones de Política Pública</h4>
+                        <div class="report-grid-sources">
+                            <div class="source-card">
+                                <strong>1. Concentración Territorial</strong>
+                                <p>El 89.7% de los incendios de Chile se concentra en 5 regiones, con el Biobío como epicentro absoluto (41.6% de los eventos nacionales).</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>2. El Fenómeno de Interfaz</strong>
+                                <p>El 96.8% de los incendios ocurren a menos de 5 km de centros poblados (distancia media de 2.1 km). El fuego en Chile es un problema de borde urbano y caminos.</p>
+                            </div>
+                            <div class="source-card">
+                                <strong>3. Causalidad Humana</strong>
+                                <p>El 62.8% de las igniciones provienen de intencionalidad (32.9%) o tránsito de personas y vehículos (29.9%), con picos en la ventana de 13:00 a 18:00 hrs.</p>
+                            </div>
+                        </div>
+
+                        <h5 style="margin-top:20px; font-size: 1rem; color: #FFD54F;">Recomendaciones Estratégicas para CONAF / SENAPRED / Municipios:</h5>
+                        <ol class="guide-bullets" style="padding-left: 20px;">
+                            <li><strong>Rezonificación y Fajas de Amortiguación Obligatorias en el Radio de 3 km:</strong> Prohibir monocultivos forestales densos a menos de 1.000 metros del límite urbano y exigir cortafuegos agrícolas o parques nativos periurbanos.</li>
+                            <li><strong>Patrullaje Preventivo Focalizado en Rutas Secundarias del Biobío y Valparaíso:</strong> Desplegar patrullas mixtas y drones térmicos durante días con alerta de regla 30-30-30 entre las 13:00 y las 19:00 hrs.</li>
+                            <li><strong>Plan Nacional de Manejo Previo de Combustibles Finos (Septiembre a Noviembre):</strong> Desmalezado mecánico y pastoreo controlado de pastizales y matorrales antes de la llegada de la temporada seca.</li>
+                        </ol>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ── Footer ─────────────────────────────────────────────── -->
+    <footer id="main-footer">
+        <div class="footer-content">
+            <div class="footer-sources">
+                <h4>Fuentes de Datos Oficiales</h4>
+                <p>CONAF / Itrend (1985–2023) · Open-Meteo Historical & Forecast · MapBiomas Chile 2022 · GeoNames Chile · NASA SRTM</p>
+            </div>
+            <div class="footer-info">
+                <p><strong>SIpi Incendios</strong> © 2024 · Modelo XGBoost V2 con Optimización Optuna y Explicabilidad SHAP</p>
+                <p class="footer-disclaimer">Herramienta de análisis geoespacial y predictivo · Proyecto de Investigación Aplicada</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Leaflet JS & MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <!-- App JS -->
+    <script src="/js/app.js"></script>
+</body>
+</html>

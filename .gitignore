@@ -1,0 +1,69 @@
+# ==============================================================================
+# SIpi Incendios - .gitignore
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Caches & temporary files
+cache/
+.cache/
+.srtm/
+scratch/
+*.tmp
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# IDE and OS files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Large raw raster files (>100MB GitHub limit)
+*.tif
+*.tiff
+data/raw/mapbiomas/
+
+# Compressed archives and downloads
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.crdownload
+
+# Heavy raw geospatial datasets
+data/raw/viirs_chile/
+data/raw/itrend_registro_historico/
+data/raw/itrend_amenaza_onemi/
+data/raw/itrend_cicatrices/
+
+# Heavy processed CSV datasets (>1MB - 25MB)
+data/processed/*.csv
+
+# Except essential web visualizer data
+!data/raw/CL.txt
+!data/processed/historical_hotspots_sample.json

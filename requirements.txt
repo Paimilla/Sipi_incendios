@@ -1,0 +1,13 @@
+flask>=3.0.0
+gunicorn>=21.2.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+shap>=0.43.0
+joblib>=1.3.0
+requests>=2.30.0
+matplotlib>=3.7.0
+srtm.py>=0.3.7
+optuna>=3.4.0
+rasterio>=1.3.0
