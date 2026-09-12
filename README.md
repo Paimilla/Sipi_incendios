@@ -232,14 +232,6 @@ Abre en tu navegador web: **`http://localhost:5000`**
 
 ---
 
-## 🔒 Seguridad, Portabilidad y Privacidad
-
-* **Cero Tokens o Claves Expuestas:** El código se conecta únicamente a servicios abiertos sin autenticación por token privado (Open-Meteo y NASA SRTM).
-* **Rutas Portables:** Todo el proyecto utiliza rutas relativas calculadas dinámicamente mediante `pathlib.Path`, funcionando sin cambios en Windows, Linux y Docker.
-* **Optimizado para GitHub:** Los datasets crudos que excedían el límite de 100 MB se encuentran excluidos por `.gitignore`, manteniendo el repositorio ligero (~21 MB) y permitiendo despliegues inmediatos en servidores gratuitos.
-
----
-
 ## 📚 Fuentes de Datos Institucionales
 
 * **CONAF & Itrend:** Base de datos histórica nacional de incendios forestales de Chile (1985–2023).
